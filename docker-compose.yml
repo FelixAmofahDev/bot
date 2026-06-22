@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-twi_root_pass}
+      MYSQL_DATABASE: ${DB_NAME:-twi_speech_db}
+      MYSQL_USER: ${DB_USER:-twi_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-twi_pass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./twi_bot/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./twi_bot/migration_add_name.sql:/docker-entrypoint-initdb.d/02-migration.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-twi_user}
+      DB_PASSWORD: ${DB_PASSWORD:-twi_pass}
+      DB_NAME: ${DB_NAME:-twi_speech_db}
+      AUDIO_DIR: /app/audio
+      TEMP_AUDIO_DIR: /app/temp_audio
+    volumes:
+      - audio_data:/app/audio
+      - temp_audio_data:/app/temp_audio
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-twi_user}
+      DB_PASSWORD: ${DB_PASSWORD:-twi_pass}
+      DB_NAME: ${DB_NAME:-twi_speech_db}
+      AUDIO_DIR: /app/audio
+      TEMP_AUDIO_DIR: /app/temp_audio
+    volumes:
+      - audio_data:/app/audio
+      - temp_audio_data:/app/temp_audio
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "main.py"]
+
+volumes:
+  mysql_data:
+  audio_data:
+  temp_audio_data:
