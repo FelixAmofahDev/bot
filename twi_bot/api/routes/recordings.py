@@ -1,9 +1,10 @@
 """Recording management endpoints."""
 from fastapi import APIRouter, HTTPException, Query
-from starlette.responses import FileResponse, RedirectResponse
+from starlette.responses import FileResponse, StreamingResponse
 from datetime import date
 import sys
 import os
+import httpx
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import db
@@ -84,20 +85,37 @@ async def download_audio(recording_id: int):
 
     audio_path = recording["audio_path"]
 
-    # If audio_path is already a full URL (Google Drive, R2 public, etc.), redirect to it
-    if audio_path.startswith("http://") or audio_path.startswith("https://"):
-        return RedirectResponse(url=audio_path, status_code=302)
+    # If audio_path is a Google Drive URL, stream it directly
+    if audio_path.startswith("https://drive.google.com"):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(audio_path, follow_redirects=True, timeout=30.0)
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch audio from Google Drive")
+                
+                return StreamingResponse(
+                    iter([response.content]),
+                    media_type="audio/ogg",
+                    headers={"Content-Disposition": f"inline; filename=audio.ogg"}
+                )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error streaming from Google Drive: {str(e)}")
 
-    # Check if R2 is enabled
-    if os.getenv("R2_ENABLED", "false").lower() == "true":
-        public_url = os.getenv("R2_PUBLIC_URL")
-        if public_url:
-            return RedirectResponse(url=f"{public_url.rstrip('/')}/{audio_path}", status_code=302)
-        endpoint = os.getenv("R2_ENDPOINT", "").rstrip("/")
-        bucket = os.getenv("R2_BUCKET_NAME", "twi-audio")
-        if endpoint and bucket:
-            return RedirectResponse(url=f"{endpoint}/{bucket}/{audio_path}", status_code=302)
-        raise HTTPException(status_code=500, detail="R2 is enabled but not configured")
+    # If audio_path is an R2 URL, stream it
+    if audio_path.startswith("http://") or audio_path.startswith("https://"):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(audio_path, follow_redirects=True, timeout=30.0)
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch audio from remote storage")
+                
+                return StreamingResponse(
+                    iter([response.content]),
+                    media_type="audio/ogg",
+                    headers={"Content-Disposition": f"inline; filename=audio.ogg"}
+                )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error streaming from remote storage: {str(e)}")
 
     # Otherwise, serve from local filesystem
     full_path = os.path.join(config.AUDIO_DIR, audio_path.lstrip("/"))
@@ -106,7 +124,7 @@ async def download_audio(recording_id: int):
 
     return FileResponse(
         full_path,
-        media_type="audio/mpeg",
+        media_type="audio/ogg",
         filename=os.path.basename(full_path),
     )
 
