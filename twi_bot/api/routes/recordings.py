@@ -4,12 +4,25 @@ from starlette.responses import FileResponse, StreamingResponse
 from datetime import date
 import sys
 import os
-import httpx
+import asyncio
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import db
 import config
 from api.schemas import RecordingResponse, PaginatedResponse
+
+router = APIRouter()
+
+
+async def _stream_from_url(url: str):
+    """Stream audio from a remote URL using aiohttp."""
+    import aiohttp
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=60)) as resp:
+            if resp.status != 200:
+                raise HTTPException(status_code=resp.status, detail="Failed to fetch audio from remote storage")
+            async for chunk in resp.content.iter_chunked(8192):
+                yield chunk
 
 router = APIRouter()
 
@@ -85,37 +98,16 @@ async def download_audio(recording_id: int):
 
     audio_path = recording["audio_path"]
 
-    # If audio_path is a Google Drive URL, stream it directly
-    if audio_path.startswith("https://drive.google.com"):
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(audio_path, follow_redirects=True, timeout=30.0)
-                if response.status_code != 200:
-                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch audio from Google Drive")
-                
-                return StreamingResponse(
-                    iter([response.content]),
-                    media_type="audio/ogg",
-                    headers={"Content-Disposition": f"inline; filename=audio.ogg"}
-                )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error streaming from Google Drive: {str(e)}")
-
-    # If audio_path is an R2 URL, stream it
+    # If audio_path is a URL (Google Drive, R2, etc.), stream it directly
     if audio_path.startswith("http://") or audio_path.startswith("https://"):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(audio_path, follow_redirects=True, timeout=30.0)
-                if response.status_code != 200:
-                    raise HTTPException(status_code=response.status_code, detail="Failed to fetch audio from remote storage")
-                
-                return StreamingResponse(
-                    iter([response.content]),
-                    media_type="audio/ogg",
-                    headers={"Content-Disposition": f"inline; filename=audio.ogg"}
-                )
+            return StreamingResponse(
+                _stream_from_url(audio_path),
+                media_type="audio/ogg",
+                headers={"Content-Disposition": "inline; filename=audio.ogg"}
+            )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error streaming from remote storage: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error streaming audio: {str(e)}")
 
     # Otherwise, serve from local filesystem
     full_path = os.path.join(config.AUDIO_DIR, audio_path.lstrip("/"))
