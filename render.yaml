@@ -1,9 +1,4 @@
 services:
-  # PostgreSQL Database (Render-managed)
-  - type: pserv
-    name: twi-db
-    plan: free
-
   # FastAPI backend + baked-in React frontend
   - type: web
     name: twi-api
@@ -13,9 +8,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: twi-db
-          property: connectionString
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: AUDIO_DIR
@@ -39,9 +32,7 @@ services:
     plan: free
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: twi-db
-          property: connectionString
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: AUDIO_DIR
