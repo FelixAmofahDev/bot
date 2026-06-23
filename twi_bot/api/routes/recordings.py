@@ -84,6 +84,11 @@ async def download_audio(recording_id: int):
 
     audio_path = recording["audio_path"]
 
+    # If audio_path is already a full URL (Google Drive, R2 public, etc.), redirect to it
+    if audio_path.startswith("http://") or audio_path.startswith("https://"):
+        return RedirectResponse(url=audio_path, status_code=302)
+
+    # Check if R2 is enabled
     if os.getenv("R2_ENABLED", "false").lower() == "true":
         public_url = os.getenv("R2_PUBLIC_URL")
         if public_url:
@@ -94,6 +99,7 @@ async def download_audio(recording_id: int):
             return RedirectResponse(url=f"{endpoint}/{bucket}/{audio_path}", status_code=302)
         raise HTTPException(status_code=500, detail="R2 is enabled but not configured")
 
+    # Otherwise, serve from local filesystem
     full_path = os.path.join(config.AUDIO_DIR, audio_path.lstrip("/"))
     if not os.path.exists(full_path):
         raise HTTPException(status_code=404, detail="Audio file not found")
