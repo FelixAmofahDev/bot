@@ -1,5 +1,5 @@
 services:
-  # FastAPI backend + baked-in React frontend
+  # FastAPI backend + Telegram bot (both in one container via supervisord)
   - type: web
     name: twi-api
     env: docker
@@ -23,25 +23,3 @@ services:
         sync: false
       - key: PORT
         generateValue: true
-
-  # Telegram bot (background worker)
-  - type: worker
-    name: twi-bot
-    env: docker
-    dockerfilePath: ./Dockerfile
-    plan: free
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: AUDIO_DIR
-        value: /app/audio
-      - key: TEMP_AUDIO_DIR
-        value: /app/temp_audio
-      - key: GOOGLE_DRIVE_ENABLED
-        sync: false
-      - key: GOOGLE_DRIVE_CREDENTIALS_PATH
-        sync: false
-      - key: GOOGLE_DRIVE_FOLDER_ID
-        sync: false

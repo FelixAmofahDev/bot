@@ -24,6 +24,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         postgresql-client \
         curl \
+        supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
@@ -32,6 +33,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source code
 COPY twi_bot/ ./
+
+# Copy supervisord configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy built frontend from Stage 1
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
@@ -42,5 +46,5 @@ RUN mkdir -p audio temp_audio
 # Expose port
 EXPOSE 8000
 
-# Default command (FastAPI API; bot runs as separate service via docker-compose)
-CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start supervisord (manages both API and bot)
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
