@@ -2,21 +2,20 @@ version: '3.8'
 
 services:
   db:
-    image: mysql:8.0
+    image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-twi_root_pass}
-      MYSQL_DATABASE: ${DB_NAME:-twi_speech_db}
-      MYSQL_USER: ${DB_USER:-twi_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-twi_pass}
+      POSTGRES_DB: ${DB_NAME:-twi_speech_db}
+      POSTGRES_USER: ${DB_USER:-twi_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-twi_pass}
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
       - ./twi_bot/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./twi_bot/migration_add_name.sql:/docker-entrypoint-initdb.d/02-migration.sql
     ports:
-      - "3306:3306"
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-twi_user}"]
       timeout: 10s
       retries: 5
 
@@ -28,14 +27,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-twi_user}
-      DB_PASSWORD: ${DB_PASSWORD:-twi_pass}
-      DB_NAME: ${DB_NAME:-twi_speech_db}
+      DATABASE_URL: postgresql://${DB_USER:-twi_user}:${DB_PASSWORD:-twi_pass}@db:5432/${DB_NAME:-twi_speech_db}?sslmode=disable
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       AUDIO_DIR: /app/audio
       TEMP_AUDIO_DIR: /app/temp_audio
+      GOOGLE_DRIVE_ENABLED: ${GOOGLE_DRIVE_ENABLED:-false}
+      GOOGLE_DRIVE_CREDENTIALS_PATH: ${GOOGLE_DRIVE_CREDENTIALS_PATH:-}
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
     volumes:
       - audio_data:/app/audio
       - temp_audio_data:/app/temp_audio
@@ -50,14 +48,13 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_USER: ${DB_USER:-twi_user}
-      DB_PASSWORD: ${DB_PASSWORD:-twi_pass}
-      DB_NAME: ${DB_NAME:-twi_speech_db}
+      DATABASE_URL: postgresql://${DB_USER:-twi_user}:${DB_PASSWORD:-twi_pass}@db:5432/${DB_NAME:-twi_speech_db}?sslmode=disable
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       AUDIO_DIR: /app/audio
       TEMP_AUDIO_DIR: /app/temp_audio
+      GOOGLE_DRIVE_ENABLED: ${GOOGLE_DRIVE_ENABLED:-false}
+      GOOGLE_DRIVE_CREDENTIALS_PATH: ${GOOGLE_DRIVE_CREDENTIALS_PATH:-}
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
     volumes:
       - audio_data:/app/audio
       - temp_audio_data:/app/temp_audio
@@ -67,6 +64,6 @@ services:
     command: ["python", "main.py"]
 
 volumes:
-  mysql_data:
+  postgres_data:
   audio_data:
   temp_audio_data:

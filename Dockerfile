@@ -15,14 +15,14 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Python runtime for FastAPI + Telegram bot
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        default-mysql-client \
+        postgresql-client \
         curl \
     && rm -rf /var/lib/apt/lists/*
 

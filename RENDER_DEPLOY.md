@@ -3,51 +3,124 @@
 ## Architecture
 
 ```
-Render Web Service (Docker)  ──►  Frontend + API  ──►  PlanetScale MySQL
+Render Web Service (Docker)  ──►  Frontend + API  ──►  Render PostgreSQL
 Render Background Worker      ──►  Telegram Bot     ──┘
 ```
 
-## Step 1 — Set up PlanetScale (free MySQL database)
+## Step 1 — Prepare Your Code
 
-1. Go to [planetscale.com](https://planetscale.com) and sign up
-2. Click **"Create a new database"**
-   - Name: `twi_speech_db`
-   - Region: choose the one closest to you (e.g. `AWS us-east-1`)
-   - Plan: **Scaler** (free, 5 GB)
-3. After creation, click **"Connect"** → **"Connect with Docker"** or **"General"** to get:
-   - **Host** (e.g. `aws.connect.psdb.cloud`)
-   - **Username** (e.g. `root`)
-   - **Password**
-4. **Important**: On PlanetScale, you need to enable the "branch" and get a connection string. The easiest way is to use their CLI or dashboard to get the connection details.
+Ensure you have:
+- ✅ `render.yaml` configured (already in repo)
+- ✅ `Dockerfile` ready (already in repo)
+- ✅ `twi_bot/requirements.txt` with all dependencies
+- ✅ `twi_bot/schema.sql` for database initialization
 
-Alternatively, use **Railway MySQL** (also free tier):
-1. Go to [railway.app](https://railway.app)
-2. New → Database → MySQL
-3. Copy the `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` from the Variables tab
-
-## Step 2 — Push your code to GitHub
+## Step 2 — Push Your Code to GitHub
 
 ```bash
 cd C:\Users\Felix\Downloads\twi_bot
 
-git init
 git add .
-git commit -m "Initial commit for Render deployment"
-git remote add origin https://github.com/your-username/twi_bot.git
-git push -u origin main
+git commit -m "Deploy to Render with PostgreSQL and Google Drive"
+git push origin main
 ```
 
 ## Step 3 — Deploy on Render
 
 1. Go to [render.com](https://render.com) and sign up / log in
 2. Click **"New"** → **"Blueprint"**
-3. Connect your GitHub repo
-4. Render will auto-detect `render.yaml` and show the services:
-   - `twi-api` (Web Service)
-   - `twi-bot` (Background Worker)
-5. Click **"Apply"**
+3. Connect your GitHub repository
+4. Render will auto-detect `render.yaml` and show:
+   - ✅ `twi-db` (PostgreSQL database) - **FREE**
+   - ✅ `twi-api` (Web Service) - **FREE**
+   - ✅ `twi-bot` (Background Worker) - **FREE**
+5. Click **"Apply"** to deploy
 
-## Step 4 — Set environment variables
+## Step 4 — Set Required Environment Variables
+
+After Render provisions the services, you'll need to set these on both `twi-api` and `twi-bot`:
+
+### 1. Telegram Bot Token
+- Key: `TELEGRAM_BOT_TOKEN`
+- Value: Your bot token (from BotFather)
+
+### 2. Google Drive (Optional)
+
+If you want to use Google Drive storage:
+
+- Key: `GOOGLE_DRIVE_ENABLED`
+- Value: `true`
+
+- Key: `GOOGLE_DRIVE_CREDENTIALS_PATH`
+- Value: Path to credentials.json (e.g., `credentials.json`)
+
+- Key: `GOOGLE_DRIVE_FOLDER_ID`
+- Value: Your Google Drive folder ID (if uploading to a specific folder)
+
+**Note:** You'll need to upload `credentials.json` or set up OAuth2 separately.
+
+## Step 5 — Database Initialization
+
+Render will automatically:
+1. Create the PostgreSQL database
+2. Run `twi_bot/schema.sql` on startup
+3. Run `twi_bot/migration_add_name.sql` on startup
+
+Your database is ready to use!
+
+## Step 6 — Monitor Deployment
+
+1. Go to your Render dashboard
+2. Check each service status (should say "Live" in green)
+3. View logs by clicking each service
+4. Click the web service URL to access your dashboard
+
+## Accessing Your App
+
+- **Dashboard (Web UI)**: `https://twi-api-xxxxx.onrender.com`
+- **API Health**: `https://twi-api-xxxxx.onrender.com/health`
+- **Telegram Bot**: Automatically polling for updates
+
+## Environment Variables Summary
+
+| Service | Variable | Example | Required |
+|---------|----------|---------|----------|
+| Both | `DATABASE_URL` | Auto-set by Render | ✅ |
+| Both | `TELEGRAM_BOT_TOKEN` | `8515823034:AAF...` | ✅ |
+| Both | `AUDIO_DIR` | `/app/audio` | ✅ (auto) |
+| Both | `TEMP_AUDIO_DIR` | `/app/temp_audio` | ✅ (auto) |
+| Both | `GOOGLE_DRIVE_ENABLED` | `true`/`false` | ❌ |
+| Both | `GOOGLE_DRIVE_CREDENTIALS_PATH` | `credentials.json` | ❌ |
+| Both | `GOOGLE_DRIVE_FOLDER_ID` | `1ABC...` | ❌ |
+
+## Free Tier Limits
+
+- **PostgreSQL**: 256 MB storage (more than enough for metadata)
+- **Web Service**: 0.5 CPU, 512 MB RAM
+- **Worker**: 0.5 CPU, 512 MB RAM
+- **Bandwidth**: 100 GB/month
+
+Audio files are stored in Google Drive (free storage), not on Render, so you won't run out of space!
+
+## Troubleshooting
+
+### Services won't start
+- Check logs: Click service → **Logs**
+- Verify `TELEGRAM_BOT_TOKEN` is set
+- Ensure database is healthy
+
+### Database connection errors
+- Wait 1-2 minutes for database to fully provision
+- Verify `DATABASE_URL` is set correctly (auto-set by Render)
+
+### Bot not responding
+- Check if `TELEGRAM_BOT_TOKEN` is correct
+- View bot worker logs for errors
+
+### Google Drive uploads failing
+- Ensure `GOOGLE_DRIVE_ENABLED=true`
+- Verify `GOOGLE_DRIVE_CREDENTIALS_PATH` points to correct file
+- Add test user to OAuth consent screen if using OAuth2
 
 After the blueprint deploys, you'll need to fill in the **sync: false** variables:
 
