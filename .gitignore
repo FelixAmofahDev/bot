@@ -27,6 +27,9 @@ token.json
 *.json
 !frontend/package.json
 !frontend/package-lock.json
+!frontend/tsconfig.json
+!frontend/tsconfig.app.json
+!frontend/tsconfig.node.json
 original-bot-*.json
 
 # =========================
