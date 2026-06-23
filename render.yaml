@@ -5,8 +5,6 @@ services:
     env: postgresql
     plan: free
     ipAllowList: []
-    postgresDatabaseName: twi_speech_db
-    postgresVersion: 15
 
   # FastAPI backend + baked-in React frontend
   - type: web
@@ -41,7 +39,6 @@ services:
     env: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    command: python main.py
     envVars:
       - key: DATABASE_URL
         fromDatabase:
