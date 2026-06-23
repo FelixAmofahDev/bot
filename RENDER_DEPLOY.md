@@ -122,33 +122,48 @@ Audio files are stored in Google Drive (free storage), not on Render, so you won
 - Verify `GOOGLE_DRIVE_CREDENTIALS_PATH` points to correct file
 - Add test user to OAuth consent screen if using OAuth2
 
-After the blueprint deploys, you'll need to fill in the **sync: false** variables:
+## Step 5 — Handle Google Drive Credentials
 
-### For `twi-api`:
-Go to the `twi-api` service → **Environment** tab, set:
-| Key | Value |
-|-----|-------|
-| `TELEGRAM_BOT_TOKEN` | Your bot token from @BotFather |
-| `DB_HOST` | Your PlanetScale/Railway host |
-| `DB_USER` | Your DB user |
-| `DB_PASSWORD` | Your DB password |
-| `DB_NAME` | `twi_speech_db` |
+Since you're using Google Drive OAuth2, you need to get `credentials.json` to Render:
 
-### For `twi-bot`:
-Same variables as above.
-
-## Step 5 — Initialize the database schema
-
-If your DB is empty, you need to run the schema. Use PlanetScale's CLI or connect via MySQL client:
-
+### Option A: Commit credentials.json to GitHub (⚠️ Not recommended for production)
 ```bash
-# Using PlanetScale CLI
-pscale connect twi_speech_db main --port 3309
-
-# Then in another terminal:
-mysql -h 127.0.0.1 -P 3309 -u root -p twi_speech_db < twi_bot/schema.sql
-mysql -h 127.0.0.1 -P 3309 -u root -p twi_speech_db < twi_bot/migration_add_name.sql
+# Only if you're okay with client ID being public
+git add twi_bot/credentials.json
+git commit -m "Add Google Drive credentials"
+git push
 ```
+
+Then set in Render environment:
+```
+GOOGLE_DRIVE_CREDENTIALS_PATH=/app/twi_bot/credentials.json
+```
+
+### Option B: Use Render File Mount (Recommended)
+1. In Render dashboard, go to `twi-api` service → **Files** tab
+2. Upload `credentials.json` to `/app/twi_bot/credentials.json`
+3. Do the same for `twi-bot` service
+4. Set environment variable:
+   ```
+   GOOGLE_DRIVE_CREDENTIALS_PATH=/app/twi_bot/credentials.json
+   ```
+
+### Option C: Encode credentials as environment variable
+If you want zero files committed, base64 encode credentials.json and decode at runtime:
+```bash
+# On your local machine
+[System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes("C:\Users\Felix\Downloads\twi_bot\twi_bot\credentials.json"))
+```
+Then set `GOOGLE_DRIVE_CREDENTIALS_B64` in Render and modify config.py to decode it.
+
+## Step 6 — Database Auto-Initialization
+
+Render will automatically:
+- Create the PostgreSQL database from `render.yaml`
+- Run `schema.sql` on first deploy
+- Your tables are ready instantly
+
+No manual database setup needed!
 
 For Railway, use the MySQL connection string from their dashboard:
 ```bash
