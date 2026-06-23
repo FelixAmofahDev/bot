@@ -16,7 +16,7 @@ services:
       - key: TEMP_AUDIO_DIR
         value: /app/temp_audio
       - key: GOOGLE_DRIVE_ENABLED
-        value: "false"
+        sync: false
       - key: GOOGLE_DRIVE_CREDENTIALS_PATH
         sync: false
       - key: GOOGLE_DRIVE_FOLDER_ID
@@ -40,7 +40,7 @@ services:
       - key: TEMP_AUDIO_DIR
         value: /app/temp_audio
       - key: GOOGLE_DRIVE_ENABLED
-        value: "false"
+        sync: false
       - key: GOOGLE_DRIVE_CREDENTIALS_PATH
         sync: false
       - key: GOOGLE_DRIVE_FOLDER_ID
