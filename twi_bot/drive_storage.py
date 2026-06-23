@@ -32,8 +32,8 @@ def _get_oauth2_credentials() -> UserCredentials:
     First run: Opens browser for user to authenticate
     Subsequent runs: Uses cached token.json
     """
-    token_path = "token.json"
     creds_path = os.getenv("GOOGLE_DRIVE_CREDENTIALS_PATH")
+    token_path = os.getenv("GOOGLE_DRIVE_TOKEN_PATH", "token.json")  # Allow override
     
     if not creds_path:
         raise RuntimeError(
@@ -50,7 +50,7 @@ def _get_oauth2_credentials() -> UserCredentials:
     if os.path.exists(token_path):
         try:
             creds = UserCredentials.from_authorized_user_file(token_path, SCOPES)
-            logger.info("✅ Loaded cached OAuth2 token")
+            logger.info("✅ Loaded cached OAuth2 token from: %s", token_path)
             
             # Refresh if expired
             if creds.expired and creds.refresh_token:
