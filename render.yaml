@@ -2,9 +2,7 @@ services:
   # PostgreSQL Database (Render-managed)
   - type: pserv
     name: twi-db
-    env: postgresql
     plan: free
-    ipAllowList: []
 
   # FastAPI backend + baked-in React frontend
   - type: web
